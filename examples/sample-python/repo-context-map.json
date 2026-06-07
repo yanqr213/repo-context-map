@@ -1,0 +1,6 @@
+{
+  "ignore": ["generated/"],
+  "max_file_size": 300000,
+  "budget": 2000,
+  "include_gitignore": true
+}
