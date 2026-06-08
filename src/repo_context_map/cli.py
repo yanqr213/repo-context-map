@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from . import __version__
 from .config import build_scan_config
-from .report import to_json, to_markdown, write_report
+from .report import to_agent_brief, to_json, to_markdown, write_report
 from .scanner import scan_repository
 
 
@@ -25,7 +25,12 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
     scan = subparsers.add_parser("scan", help="Scan a local repository.")
     scan.add_argument("path", nargs="?", default=".", help="Repository path to scan.")
-    scan.add_argument("--format", choices=["markdown", "json"], default="markdown", help="Output format.")
+    scan.add_argument(
+        "--format",
+        choices=["markdown", "json", "agent-brief"],
+        default="markdown",
+        help="Output format.",
+    )
     scan.add_argument("--output", "-o", default="", help="Write report to this path. Parent directories are created.")
     scan.add_argument("--config", default="", help="Optional JSON config path.")
     scan.add_argument("--budget", type=int, default=5000, help="Approximate token budget for the recommended context pack.")
@@ -45,7 +50,12 @@ def _scan(args: argparse.Namespace) -> int:
         check=args.check,
     )
     repo_map = scan_repository(config)
-    content = to_json(repo_map) if args.format == "json" else to_markdown(repo_map)
+    if args.format == "json":
+        content = to_json(repo_map)
+    elif args.format == "agent-brief":
+        content = to_agent_brief(repo_map)
+    else:
+        content = to_markdown(repo_map)
     if args.output:
         write_report(content, args.output)
     else:

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Added `--format agent-brief` for paste-ready coding-agent handoff briefs.
+- Added agent brief tests and CI smoke coverage.
+- Updated project URLs to the public GitHub repository.
+
 ## 0.1.0
 
 - Initial release of the offline repository context map CLI.

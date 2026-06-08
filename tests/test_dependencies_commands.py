@@ -36,7 +36,7 @@ def test_package_json_dependencies_and_commands(tmp_path):
 
 def test_go_and_cargo_commands(tmp_path):
     root = tmp_path / "multi"
-    write(root / "go.mod", "module repo-context-map.test/demo\nrequire golang.org/x/text v0.1.0\n")
+    write(root / "go.mod", "module github.com/yanqr213/repo-context-map/examples/demo\nrequire golang.org/x/text v0.1.0\n")
     write(root / "Cargo.toml", "[dependencies]\nserde = \"1\"\n[dev-dependencies]\ninsta = \"1\"\n")
     summaries = summarize_dependencies(root)
     commands = infer_commands(root)

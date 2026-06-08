@@ -30,6 +30,12 @@ python -m pip install .
 repo-context-map --version
 ```
 
+未安装时也可以从源码运行：
+
+```bash
+PYTHONPATH=src python -m repo_context_map --version
+```
+
 ## 快速使用
 
 扫描当前仓库并输出 Markdown：
@@ -42,6 +48,12 @@ repo-context-map scan .
 
 ```bash
 repo-context-map scan . --format json
+```
+
+生成可直接贴给 Codex、Claude Code、Cursor 的 agent brief：
+
+```bash
+repo-context-map scan . --format agent-brief --output AGENT_BRIEF.md
 ```
 
 写入文件，父目录会自动创建：
@@ -100,6 +112,7 @@ repo-context-map scan . --config repo-context-map.json
 - `Recent Change Hotspots`：当仓库有 Git 历史时，统计最近 90 天频繁改动的文件。
 - `Risk Files`：提示可能包含敏感信息、过大或复杂度过高的文件。
 - `Recommended AI Context Pack`：在预算内推荐最值得提供给 AI agent 的文件集合。
+- `Agent Repository Brief`：`--format agent-brief` 输出的精简交接简报，按先读文件、可尝试命令、依赖 manifest、推荐上下文包、风险和建议工作流组织。
 
 ## CI 用法
 
@@ -118,6 +131,7 @@ GitHub Actions 中可直接安装并运行：
 
 ```bash
 repo-context-map scan examples/sample-python --mermaid
+repo-context-map scan examples/sample-python --format agent-brief --output AGENT_BRIEF.md
 ```
 
 ## 适用场景
@@ -137,14 +151,15 @@ repo-context-map scan examples/sample-python --mermaid
 
 ## English Summary
 
-`repo-context-map` is an offline Python CLI that builds repository context maps for AI coding agents. It scans a local codebase and emits Markdown or JSON reports with language distribution, directory roles, entry points, dependency manifests, command candidates, documentation index, large or complex files, Git change hotspots, risk signals, and a recommended context pack.
+`repo-context-map` is an offline Python CLI that builds repository context maps for AI coding agents. It scans a local codebase and emits Markdown, JSON, or paste-ready agent brief reports with language distribution, directory roles, entry points, dependency manifests, command candidates, documentation index, large or complex files, Git change hotspots, risk signals, and a recommended context pack.
 
 Typical use:
 
 ```bash
 repo-context-map scan . --output reports/context-map.md
 repo-context-map scan . --format json
+repo-context-map scan . --format agent-brief --output AGENT_BRIEF.md
 repo-context-map scan . --check
 ```
 
-The tool is designed for developers preparing high-signal briefings before assigning work to Codex, Claude Code, Cursor, or similar coding agents.
+The `agent-brief` format is designed to be pasted into Codex, Claude Code, Cursor, or similar coding agents before assigning work. It highlights start files, likely commands, dependency manifests, risk files, and a suggested workflow.
