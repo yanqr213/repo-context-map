@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0 - 2026-06-09
+
+- Added `--format agent-prompt` for copy-ready Codex, Claude Code, and Cursor kickoff prompts.
+- Added `--task` to inject the current work objective into generated agent prompts.
+- Expanded CI smoke coverage, tests, and Chinese/English README usage notes for agent prompt workflows.
+
 ## 0.4.0 - 2026-06-09
 
 - Added TODO/FIXME-style task marker detection to Markdown, JSON, and agent brief outputs.

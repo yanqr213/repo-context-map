@@ -20,5 +20,6 @@ jobs:
       - run: python -m pytest
       - run: repo-context-map scan examples/sample-python --output reports/context-map.md
       - run: repo-context-map scan examples/sample-python --format agent-brief --output reports/AGENT_BRIEF.md
+      - run: repo-context-map scan examples/sample-python --format agent-prompt --task "Add input validation" --output reports/AGENT_PROMPT.md
       - run: repo-context-map scan examples/sample-python --format manifest --output reports/context-manifest.txt
       - run: repo-context-map scan examples/sample-python --format context-bundle --output reports/context-bundle.md

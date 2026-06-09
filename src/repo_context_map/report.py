@@ -77,6 +77,71 @@ def to_agent_brief(repo_map: RepoMap) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def to_agent_prompt(repo_map: RepoMap, task: str = "") -> str:
+    """Render a copy-ready kickoff prompt for AI coding agents."""
+
+    task_text = task.strip() or "Describe the requested change here before sending this prompt to the agent."
+    lines: List[str] = [
+        "# Agent Kickoff Prompt",
+        "",
+        "You are working in the local repository described below. Use this as orientation, then inspect live files before editing.",
+        "",
+        "## Task",
+        "",
+        task_text,
+        "",
+        "## Repository Map",
+        "",
+        f"- Root: `{repo_map.root}`",
+        f"- Files scanned: {repo_map.files_scanned}",
+        f"- Main languages: {_language_summary(repo_map.language_stats)}",
+        f"- Primary roles: {_role_summary(repo_map.role_stats)}",
+        "",
+    ]
+    _prompt_section(lines, "Read First", _start_here(repo_map))
+    _prompt_section(
+        lines,
+        "Recommended Context Files",
+        [
+            f"`{item['path']}` - {item['reason']} (~{item['estimated_tokens']} tokens)"
+            for item in repo_map.context_pack[:12]
+        ],
+    )
+    _prompt_commands(lines, repo_map.command_candidates)
+    _prompt_section(
+        lines,
+        "Recent Hotspots",
+        [f"`{item['path']}` - {item['changes']} recent changes" for item in repo_map.hotspots[:8]],
+    )
+    _prompt_section(
+        lines,
+        "Open Task Markers",
+        [f"`{item.path}:{item.line}` - {item.tag}: {item.text}" for item in repo_map.task_markers[:8]],
+    )
+    risks = list(repo_map.risks[:8])
+    risks.extend(f"`{item['path']}` - {', '.join(item['reasons'])}" for item in repo_map.risk_files[:8])
+    _prompt_section(lines, "Risks And Guardrails", risks)
+    lines.extend(
+        [
+            "## Working Rules",
+            "",
+            "- Read the relevant files before changing code; this map is a guide, not source of truth.",
+            "- Keep edits scoped to the task and preserve existing project style.",
+            "- Run the most relevant tests or checks listed above, then summarize evidence in the final response.",
+            "- Do not paste secrets, private keys, or large generated artifacts into chat context.",
+            "",
+            "## Expected Final Response",
+            "",
+            "- What changed and why.",
+            "- Files touched.",
+            "- Tests or checks run, including failures if any.",
+            "- Remaining risks or follow-up work.",
+            "",
+        ]
+    )
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def to_manifest(repo_map: RepoMap) -> str:
     """Render the recommended context pack as a newline-delimited manifest."""
 
@@ -306,6 +371,23 @@ def _brief_risks(lines: List[str], repo_map: RepoMap) -> None:
     for item in repo_map.risk_files[:10]:
         lines.append(f"- `{item['path']}` - {', '.join(item['reasons'])}")
     lines.append("")
+
+
+def _prompt_section(lines: List[str], title: str, values: List[str]) -> None:
+    lines.extend([f"## {title}", ""])
+    if values:
+        lines.extend(f"- {value}" for value in values)
+    else:
+        lines.append("- No strong signal detected.")
+    lines.append("")
+
+
+def _prompt_commands(lines: List[str], commands: Dict[str, List[str]]) -> None:
+    values: List[str] = []
+    for key, label in [("test", "Test"), ("lint", "Lint"), ("format", "Format"), ("start", "Start")]:
+        for command in commands.get(key, [])[:4]:
+            values.append(f"{label}: `{command}`")
+    _prompt_section(lines, "Commands To Verify", values)
 
 
 def _dedupe(values: List[str]) -> List[str]:

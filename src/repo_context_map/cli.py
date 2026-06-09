@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from . import __version__
 from .config import build_scan_config
-from .report import to_agent_brief, to_context_bundle, to_json, to_manifest, to_markdown, write_report
+from .report import to_agent_brief, to_agent_prompt, to_context_bundle, to_json, to_manifest, to_markdown, write_report
 from .scanner import scan_repository
 
 
@@ -27,11 +27,12 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("path", nargs="?", default=".", help="Repository path to scan.")
     scan.add_argument(
         "--format",
-        choices=["markdown", "json", "agent-brief", "manifest", "context-bundle"],
+        choices=["markdown", "json", "agent-brief", "agent-prompt", "manifest", "context-bundle"],
         default="markdown",
         help="Output format.",
     )
     scan.add_argument("--output", "-o", default="", help="Write report to this path. Parent directories are created.")
+    scan.add_argument("--task", default="", help="Task text to include when using --format agent-prompt.")
     scan.add_argument("--config", default="", help="Optional JSON config path.")
     scan.add_argument("--budget", type=int, default=5000, help="Approximate token budget for the recommended context pack.")
     scan.add_argument("--max-file-size", type=int, default=512_000, help="Skip files larger than this many bytes.")
@@ -54,6 +55,8 @@ def _scan(args: argparse.Namespace) -> int:
         content = to_json(repo_map)
     elif args.format == "agent-brief":
         content = to_agent_brief(repo_map)
+    elif args.format == "agent-prompt":
+        content = to_agent_prompt(repo_map, args.task)
     elif args.format == "manifest":
         content = to_manifest(repo_map)
     elif args.format == "context-bundle":

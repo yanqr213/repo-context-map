@@ -4,7 +4,15 @@ import sys
 
 from repo_context_map.cli import main
 from repo_context_map.models import ScanConfig
-from repo_context_map.report import to_agent_brief, to_context_bundle, to_json, to_manifest, to_markdown, write_report
+from repo_context_map.report import (
+    to_agent_brief,
+    to_agent_prompt,
+    to_context_bundle,
+    to_json,
+    to_manifest,
+    to_markdown,
+    write_report,
+)
 from repo_context_map.scanner import scan_repository
 
 from conftest import write
@@ -39,6 +47,28 @@ def test_agent_brief_is_paste_ready(make_repo):
     assert "## Task Markers" in brief
     assert "TODO: handle command errors" in brief
     assert "## Suggested Agent Workflow" in brief
+
+
+def test_agent_prompt_is_copy_ready_with_task(make_repo):
+    repo_map = scan_repository(ScanConfig(root=make_repo))
+    prompt = to_agent_prompt(repo_map, "Add CLI error handling.")
+
+    assert "# Agent Kickoff Prompt" in prompt
+    assert "Add CLI error handling." in prompt
+    assert "## Read First" in prompt
+    assert "`README.md` - documentation" in prompt
+    assert "## Recommended Context Files" in prompt
+    assert "`src/demo/cli.py`" in prompt
+    assert "Test: `python -m pytest`" in prompt
+    assert "TODO: handle command errors" in prompt
+    assert "## Expected Final Response" in prompt
+
+
+def test_agent_prompt_has_placeholder_task_when_missing(make_repo):
+    repo_map = scan_repository(ScanConfig(root=make_repo))
+    prompt = to_agent_prompt(repo_map)
+
+    assert "Describe the requested change here" in prompt
 
 
 def test_manifest_lists_recommended_context_paths(make_repo):
@@ -92,6 +122,28 @@ def test_cli_scan_agent_brief_output(tmp_path, make_repo):
     assert "Recommended Context Pack" in text
 
 
+def test_cli_scan_agent_prompt_output(tmp_path, make_repo):
+    output = tmp_path / "out" / "AGENT_PROMPT.md"
+    code = main(
+        [
+            "scan",
+            str(make_repo),
+            "--format",
+            "agent-prompt",
+            "--task",
+            "Refactor the CLI entry point.",
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert code == 0
+    text = output.read_text(encoding="utf-8")
+    assert "Agent Kickoff Prompt" in text
+    assert "Refactor the CLI entry point." in text
+    assert "Commands To Verify" in text
+
+
 def test_cli_scan_manifest_and_context_bundle_outputs(tmp_path, make_repo):
     manifest = tmp_path / "out" / "context-manifest.txt"
     bundle = tmp_path / "out" / "context-bundle.md"
@@ -113,7 +165,7 @@ def test_python_module_entrypoint_reports_version():
         text=True,
     )
 
-    assert "repo-context-map 0.4.0" in completed.stdout
+    assert "repo-context-map 0.5.0" in completed.stdout
 
 
 def test_cli_check_returns_nonzero_for_risky_repo(tmp_path, capsys):

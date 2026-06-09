@@ -10,6 +10,7 @@
 - 大文件、复杂文件、Git 近期改动热点和风险文件
 - TODO/FIXME/XXX/HACK/BUG/OPTIMIZE 等任务标记，包含文件和行号
 - 推荐交给 AI agent 的上下文包、manifest 或可直接粘贴的 context bundle
+- 可直接复制给 Codex、Claude Code、Cursor 的任务启动 Prompt
 
 ## 安装
 
@@ -55,6 +56,12 @@ repo-context-map scan . --format json
 
 ```bash
 repo-context-map scan . --format agent-brief --output AGENT_BRIEF.md
+```
+
+生成带任务目标的 agent kickoff prompt：
+
+```bash
+repo-context-map scan . --format agent-prompt --task "修复登录页表单校验并补测试" --output AGENT_PROMPT.md
 ```
 
 只输出推荐上下文路径，一行一个：
@@ -121,6 +128,7 @@ repo-context-map scan . --config repo-context-map.json
 - `Risk Files`：敏感命名、大文件、高复杂度等风险信号。
 - `Recommended AI Context Pack`：在 token 预算内推荐最值得提供给 AI agent 的文件集合。
 - `Agent Repository Brief`：`--format agent-brief` 输出的精简交接简报。
+- `Agent Kickoff Prompt`：`--format agent-prompt --task "..."` 输出的可复制任务启动 Prompt，包含目标、必读文件、推荐上下文、验证命令、风险和最终回复要求。
 - `manifest`：一行一个推荐上下文路径，适合后续脚本或 `prompt-context-gate` 等工具继续处理。
 - `context-bundle`：包含推荐文件内容、选择原因和估算 token 的 Markdown 包。
 
@@ -130,6 +138,7 @@ repo-context-map scan . --config repo-context-map.json
 - run: python -m pip install .
 - run: repo-context-map scan . --check --output reports/context-map.md
 - run: repo-context-map scan . --format manifest --output reports/context-manifest.txt
+- run: repo-context-map scan . --format agent-prompt --task "Review this change" --output reports/AGENT_PROMPT.md
 - run: repo-context-map scan . --format context-bundle --budget 3500 --output reports/context-bundle.md
 ```
 
@@ -142,6 +151,7 @@ repo-context-map scan . --config repo-context-map.json
 ```bash
 repo-context-map scan examples/sample-python --mermaid
 repo-context-map scan examples/sample-python --format agent-brief --output AGENT_BRIEF.md
+repo-context-map scan examples/sample-python --format agent-prompt --task "Add input validation" --output AGENT_PROMPT.md
 repo-context-map scan examples/sample-python --format manifest --output context-manifest.txt
 repo-context-map scan examples/sample-python --format context-bundle --output context-bundle.md
 ```
@@ -180,12 +190,13 @@ python -m pip install .
 repo-context-map scan .
 repo-context-map scan . --format json
 repo-context-map scan . --format agent-brief --output AGENT_BRIEF.md
+repo-context-map scan . --format agent-prompt --task "Fix the failing tests" --output AGENT_PROMPT.md
 repo-context-map scan . --format manifest --output context-manifest.txt
 repo-context-map scan . --format context-bundle --budget 3500 --output context-bundle.md
 repo-context-map scan . --check
 ```
 
-The `agent-brief` format is designed to be pasted into AI coding agents before assigning work. The `manifest` format writes one recommended context path per line for downstream tooling. The `context-bundle` format writes selected file contents into Markdown for small repositories or focused tasks.
+The `agent-brief` format is designed to be pasted into AI coding agents before assigning work. The `agent-prompt` format creates a copy-ready kickoff prompt with the task, read-first files, recommended context, verification commands, risk notes, and expected final response. The `manifest` format writes one recommended context path per line for downstream tooling. The `context-bundle` format writes selected file contents into Markdown for small repositories or focused tasks.
 
 ### Privacy And Limits
 
