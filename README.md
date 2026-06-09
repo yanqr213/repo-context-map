@@ -1,14 +1,15 @@
 # repo-context-map
 
-`repo-context-map` 是一个离线 CLI，用来给 AI coding agents 生成高质量仓库 briefing。它会扫描本地仓库，输出源码树线索、语言和文件类型分布、入口点、依赖摘要、测试/格式化/启动命令候选、关键文档、近期改动热点、风险文件，以及适合直接贴给 Codex、Claude Code、Cursor 的推荐上下文包。
+`repo-context-map` 是一个离线 Python CLI，用来给 Codex、Claude Code、Cursor 等 AI 编程助手生成紧凑、可审查的仓库上下文简报。它只读取本地文件，不上传源码，也不调用在线模型。
 
-它适合在派活前快速回答这些问题：
+它会扫描本地仓库并输出：
 
-- 这个仓库主要是什么语言和结构？
-- 哪些文件最值得先给 AI 读？
-- 测试、格式化、启动命令可能是什么？
-- 最近频繁改动或风险较高的文件在哪里？
-- 缺测试、缺文档、可疑敏感文件等风险是否应该先处理？
+- 源码树信号、语言分布、文件角色和目录角色
+- 可能的入口文件、关键文档、依赖 manifest
+- 测试、lint、format、启动命令候选
+- 大文件、复杂文件、Git 近期改动热点和风险文件
+- TODO/FIXME/XXX/HACK/BUG/OPTIMIZE 等任务标记，包含文件和行号
+- 推荐交给 AI agent 的上下文包、manifest 或可直接粘贴的 context bundle
 
 ## 安装
 
@@ -24,7 +25,7 @@ python -m pip install -e ".[dev]"
 python -m pip install .
 ```
 
-安装后可使用：
+安装后：
 
 ```bash
 repo-context-map --version
@@ -36,7 +37,7 @@ repo-context-map --version
 PYTHONPATH=src python -m repo_context_map --version
 ```
 
-## 快速使用
+## 快速开始
 
 扫描当前仓库并输出 Markdown：
 
@@ -50,25 +51,25 @@ repo-context-map scan .
 repo-context-map scan . --format json
 ```
 
-生成可直接贴给 Codex、Claude Code、Cursor 的 agent brief：
+生成适合直接贴给 Codex、Claude Code、Cursor 的 agent brief：
 
 ```bash
 repo-context-map scan . --format agent-brief --output AGENT_BRIEF.md
 ```
 
-生成推荐上下文文件清单，适合交给 `prompt-context-gate` 或内部打包脚本：
+只输出推荐上下文路径，一行一个：
 
 ```bash
 repo-context-map scan . --format manifest --output context-manifest.txt
 ```
 
-生成带文件内容的 Markdown context bundle，适合小型任务直接交给 AI 编程代理：
+生成包含推荐文件内容的 Markdown context bundle：
 
 ```bash
 repo-context-map scan . --format context-bundle --budget 3500 --output context-bundle.md
 ```
 
-写入文件，父目录会自动创建：
+写入报告，父目录会自动创建：
 
 ```bash
 repo-context-map scan . --output reports/context-map.md
@@ -80,21 +81,15 @@ repo-context-map scan . --output reports/context-map.md
 repo-context-map scan . --mermaid --output reports/context-map.md
 ```
 
-限制推荐上下文包预算：
-
-```bash
-repo-context-map scan . --budget 3000
-```
-
-CI 或预检模式：检测到缺少测试、文档、测试命令或风险文件时返回非零。
+CI 或预检模式：
 
 ```bash
 repo-context-map scan . --check
 ```
 
-## 配置 JSON
+## 配置
 
-示例：
+示例 `repo-context-map.json`：
 
 ```json
 {
@@ -106,31 +101,30 @@ repo-context-map scan . --check
 }
 ```
 
-运行：
+使用配置运行：
 
 ```bash
 repo-context-map scan . --config repo-context-map.json
 ```
 
-## 输出解释
+## 输出说明
 
 - `Language Distribution`：按语言统计文件数、行数和字节数。
-- `Directory Roles`：推断目录角色，例如 source、tests、docs、examples、scripts、ci。
+- `Directory Roles`：推断目录用途，例如 source、tests、docs、examples、scripts、CI。
 - `Entry Points`：常见入口文件，例如 `main.py`、`cli.py`、`index.ts`、`src/main.rs`。
-- `Dependency Summary`：读取 `pyproject.toml`、`requirements.txt`、`package.json`、`go.mod`、`Cargo.toml`。
-- `Command Candidates`：推断测试、格式化、lint、启动命令。
-- `Documentation Index`：列出 README、CHANGELOG、CONTRIBUTING、docs 下的文档等。
-- `Largest Files` / `Most Complex Files`：用大小和分支关键字估算需要谨慎阅读的文件。
-- `Recent Change Hotspots`：当仓库有 Git 历史时，统计最近 90 天频繁改动的文件。
-- `Risk Files`：提示可能包含敏感信息、过大或复杂度过高的文件。
-- `Recommended AI Context Pack`：在预算内推荐最值得提供给 AI agent 的文件集合。
-- `Agent Repository Brief`：`--format agent-brief` 输出的精简交接简报，按先读文件、可尝试命令、依赖 manifest、推荐上下文包、风险和建议工作流组织。
-- `manifest`：只输出推荐上下文包里的路径，一行一个，便于后续脚本、pre-commit 或 `prompt-context-gate build --manifest` 继续处理。
-- `context-bundle`：输出 Markdown 文件块，包含推荐文件内容、选择原因和估算 token，适合小仓库或窄任务的快速交接。
+- `Dependency Summary`：读取 `pyproject.toml`、`requirements.txt`、`package.json`、`go.mod`、`Cargo.toml` 等常见 manifest。
+- `Command Candidates`：推断测试、lint、format、启动命令。
+- `Documentation Index`：README、CHANGELOG、CONTRIBUTING、docs 文件等。
+- `Largest Files` / `Most Complex Files`：提示可能需要谨慎阅读或拆分的文件。
+- `Recent Change Hotspots`：有本地 Git 历史时，统计近期频繁改动文件。
+- `Task Markers`：从常见注释行提取 TODO/FIXME-style 标记，给 AI agent 快速定位未完成事项。
+- `Risk Files`：敏感命名、大文件、高复杂度等风险信号。
+- `Recommended AI Context Pack`：在 token 预算内推荐最值得提供给 AI agent 的文件集合。
+- `Agent Repository Brief`：`--format agent-brief` 输出的精简交接简报。
+- `manifest`：一行一个推荐上下文路径，适合后续脚本或 `prompt-context-gate` 等工具继续处理。
+- `context-bundle`：包含推荐文件内容、选择原因和估算 token 的 Markdown 包。
 
-## CI 用法
-
-GitHub Actions 中可直接安装并运行：
+## CI 示例
 
 ```yaml
 - run: python -m pip install .
@@ -141,7 +135,7 @@ GitHub Actions 中可直接安装并运行：
 
 本仓库自带 CI 会在 Python 3.9 到 3.12 上运行测试和 CLI 烟测。
 
-## 示例
+## 示例仓库
 
 `examples/sample-python` 是一个可扫描的小型 Python 仓库：
 
@@ -154,27 +148,36 @@ repo-context-map scan examples/sample-python --format context-bundle --output co
 
 ## 适用场景
 
-- 给 AI 编程代理派活前生成仓库简报。
+- 给 AI 编程助手派活前生成仓库简报。
 - 在代码评审、交接、事故分析前快速摸清仓库结构。
-- 在 CI 中检查仓库是否缺少基本测试或文档。
+- 在 CI 中检查仓库是否缺少基本测试、文档或命令信号。
 - 为多仓库维护者生成一致的上下文包。
+- 找出注释里的 TODO/FIXME-style 未完成事项，辅助 agent 切任务。
 
 ## 限制
 
-- `.gitignore` 支持基础通配和目录忽略，不是完整 Git ignore 引擎。
-- 复杂度是轻量启发式估算，不替代语言专用分析器。
-- 依赖摘要只覆盖常见 manifest，并不会解析所有 lockfile 细节。
-- 热点统计依赖本地 Git 历史；没有 `.git` 时会跳过。
-- 默认离线运行，不会上传源码，也不会调用在线模型。
+- `.gitignore` 支持是轻量实现，不是完整 Git ignore 引擎。
+- 复杂度是基于分支关键字的启发式估算，不替代语言专用静态分析。
+- 依赖摘要覆盖常见 manifest，不解析所有 lockfile 细节。
+- Git 热点依赖本地 Git 历史；没有 `.git` 时会跳过。
+- 任务标记检测只匹配常见注释前缀，不是 issue tracker，也不是 AST 级语义解析。
+- 默认离线运行，不上传源码，不调用在线模型。
 
-## English Summary
+## English
 
-`repo-context-map` is an offline Python CLI that builds repository context maps for AI coding agents. It scans a local codebase and emits Markdown, JSON, or paste-ready agent brief reports with language distribution, directory roles, entry points, dependency manifests, command candidates, documentation index, large or complex files, Git change hotspots, risk signals, and a recommended context pack.
+`repo-context-map` is an offline Python CLI for building compact repository briefings for AI coding agents such as Codex, Claude Code, Cursor, and similar tools. It scans a local repository and reports source tree signals, languages, file roles, directory roles, entry points, dependency manifests, command candidates, documentation, recent Git hotspots, risk files, TODO/FIXME-style task markers, and recommended context packs.
 
-Typical use:
+### Install
 
 ```bash
-repo-context-map scan . --output reports/context-map.md
+python -m pip install -e ".[dev]"
+python -m pip install .
+```
+
+### Usage
+
+```bash
+repo-context-map scan .
 repo-context-map scan . --format json
 repo-context-map scan . --format agent-brief --output AGENT_BRIEF.md
 repo-context-map scan . --format manifest --output context-manifest.txt
@@ -182,6 +185,8 @@ repo-context-map scan . --format context-bundle --budget 3500 --output context-b
 repo-context-map scan . --check
 ```
 
-The `agent-brief` format is designed to be pasted into Codex, Claude Code, Cursor, or similar coding agents before assigning work. It highlights start files, likely commands, dependency manifests, risk files, and a suggested workflow.
+The `agent-brief` format is designed to be pasted into AI coding agents before assigning work. The `manifest` format writes one recommended context path per line for downstream tooling. The `context-bundle` format writes selected file contents into Markdown for small repositories or focused tasks.
 
-The `manifest` format writes one recommended context path per line, which is useful for downstream tools such as `prompt-context-gate build --manifest`. The `context-bundle` format writes a Markdown bundle with selected file contents, reasons, and estimated token counts for quick handoff on small or focused tasks.
+### Privacy And Limits
+
+The tool reads local files only and does not upload code or call online models. Task marker detection is intentionally lightweight: it extracts common TODO/FIXME-style comments with file and line references, but it is not a full issue tracker or language AST analyzer.

@@ -11,10 +11,16 @@ from .commands import infer_commands
 from .dependencies import summarize_dependencies
 from .gitinfo import collect_hotspots
 from .ignore import IgnoreMatcher
-from .models import FileInfo, RepoMap, ScanConfig
+from .models import FileInfo, RepoMap, ScanConfig, TaskMarker
 
 BINARY_SAMPLE_SIZE = 4096
 COMPLEXITY_KEYWORDS = re.compile(r"\b(if|elif|else|for|while|case|catch|except|and|or|match|switch)\b|&&|\|\||\?")
+TASK_MARKER_PATTERN = re.compile(
+    r"^\s*(?:#|//|/\*+|\*|<!--|;|--|rem\b|REM\b)\s*"
+    r"\b(TODO|FIXME|XXX|HACK|BUG|OPTIMIZE)\b[:\-\s]*(.*)",
+    re.IGNORECASE,
+)
+TASK_MARKER_LIMIT = 50
 RISK_NAMES = {"secrets.json", ".env", ".env.local", "id_rsa", "id_dsa"}
 RISK_SUFFIXES = {".pem", ".key", ".p12"}
 
@@ -23,6 +29,7 @@ def scan_repository(config: ScanConfig) -> RepoMap:
     root = config.root.resolve()
     matcher = IgnoreMatcher.from_root(root, config.ignore_patterns, config.include_gitignore)
     files: List[FileInfo] = []
+    task_markers: List[TaskMarker] = []
     skipped = 0
     total_bytes = 0
     directory_roles: Dict[str, str] = {}
@@ -46,11 +53,13 @@ def scan_repository(config: ScanConfig) -> RepoMap:
             if matcher.ignores(rel, is_dir=False):
                 skipped += 1
                 continue
-            info, was_skipped = _inspect_file(path, rel, config.max_file_size)
+            info, markers, was_skipped = _inspect_file(path, rel, config.max_file_size)
             if was_skipped:
                 skipped += 1
             else:
                 total_bytes += info.size
+                if len(task_markers) < TASK_MARKER_LIMIT:
+                    task_markers.extend(markers[: TASK_MARKER_LIMIT - len(task_markers)])
             files.append(info)
 
     language_stats = _stats(files, "language")
@@ -81,6 +90,7 @@ def scan_repository(config: ScanConfig) -> RepoMap:
         largest_files=largest,
         complex_files=complex_files,
         hotspots=hotspots,
+        task_markers=task_markers,
         risk_files=risk_files,
         context_pack=context_pack,
         entry_points=entry_points,
@@ -89,23 +99,23 @@ def scan_repository(config: ScanConfig) -> RepoMap:
     )
 
 
-def _inspect_file(path: Path, rel: str, max_file_size: int) -> Tuple[FileInfo, bool]:
+def _inspect_file(path: Path, rel: str, max_file_size: int) -> Tuple[FileInfo, List[TaskMarker], bool]:
     size = path.stat().st_size
     language = detect_language(rel)
     role = infer_file_role(rel)
     info = FileInfo(path=rel, size=size, language=language, role=role)
     if size > max_file_size:
         info.skipped_reason = "too_large"
-        return info, True
+        return info, [], True
     if _is_binary(path):
         info.is_binary = True
         info.skipped_reason = "binary"
-        return info, True
+        return info, [], True
     text = path.read_text(encoding="utf-8", errors="ignore")
     lines = text.splitlines()
     info.line_count = len(lines)
     info.complexity = _estimate_complexity(lines)
-    return info, False
+    return info, _task_markers(rel, lines), False
 
 
 def _is_binary(path: Path) -> bool:
@@ -121,6 +131,25 @@ def _estimate_complexity(lines: Iterable[str]) -> int:
             continue
         score += len(COMPLEXITY_KEYWORDS.findall(stripped))
     return score
+
+
+def _task_markers(path: str, lines: List[str]) -> List[TaskMarker]:
+    markers: List[TaskMarker] = []
+    for line_number, line in enumerate(lines, start=1):
+        match = TASK_MARKER_PATTERN.search(line)
+        if not match:
+            continue
+        tag = match.group(1).upper()
+        text = _clean_marker_text(match.group(2))
+        markers.append(TaskMarker(path=path, line=line_number, tag=tag, text=text))
+        if len(markers) >= 10:
+            break
+    return markers
+
+
+def _clean_marker_text(text: str) -> str:
+    cleaned = text.strip().removesuffix("-->").strip().strip("#/*-:; ")
+    return cleaned[:160] if cleaned else "(no description)"
 
 
 def _stats(files: List[FileInfo], attr: str) -> Dict[str, Dict[str, int]]:

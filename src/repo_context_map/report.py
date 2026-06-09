@@ -5,7 +5,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
-from .models import DependencySummary, FileInfo, RepoMap
+from .models import DependencySummary, FileInfo, RepoMap, TaskMarker
 
 
 def to_json(repo_map: RepoMap) -> str:
@@ -31,6 +31,7 @@ def to_markdown(repo_map: RepoMap) -> str:
     _files(lines, "Largest Files", repo_map.largest_files)
     _files(lines, "Most Complex Files", repo_map.complex_files)
     _hotspots(lines, repo_map.hotspots)
+    _task_markers(lines, repo_map.task_markers)
     _risk_files(lines, repo_map.risk_files)
     _context_pack(lines, repo_map.context_pack)
     _list(lines, "Repository Risks", repo_map.risks)
@@ -60,6 +61,7 @@ def to_agent_brief(repo_map: RepoMap) -> str:
     _brief_dependencies(lines, repo_map.dependencies)
     _brief_context_pack(lines, repo_map.context_pack)
     _brief_hotspots(lines, repo_map.hotspots)
+    _brief_task_markers(lines, repo_map.task_markers)
     _brief_risks(lines, repo_map)
     lines.extend(
         [
@@ -185,6 +187,11 @@ def _hotspots(lines: List[str], hotspots: List[Dict[str, Any]]) -> None:
     _table(lines, "Recent Change Hotspots", ["Path", "Changes"], [[item["path"], item["changes"]] for item in hotspots])
 
 
+def _task_markers(lines: List[str], task_markers: List[TaskMarker]) -> None:
+    rows = [[item.path, item.line, item.tag, item.text] for item in task_markers]
+    _table(lines, "Task Markers", ["Path", "Line", "Tag", "Text"], rows)
+
+
 def _risk_files(lines: List[str], risk_files: List[Dict[str, Any]]) -> None:
     rows = [[item["path"], ", ".join(item["reasons"]), item["size"], item["complexity"]] for item in risk_files]
     _table(lines, "Risk Files", ["Path", "Reasons", "Bytes", "Complexity"], rows)
@@ -276,6 +283,16 @@ def _brief_hotspots(lines: List[str], hotspots: List[Dict[str, Any]]) -> None:
         return
     for item in hotspots[:10]:
         lines.append(f"- `{item['path']}` - {item['changes']} recent changes")
+    lines.append("")
+
+
+def _brief_task_markers(lines: List[str], task_markers: List[TaskMarker]) -> None:
+    lines.extend(["## Task Markers", ""])
+    if not task_markers:
+        lines.extend(["- No TODO/FIXME-style task markers detected.", ""])
+        return
+    for item in task_markers[:12]:
+        lines.append(f"- `{item.path}:{item.line}` - {item.tag}: {item.text}")
     lines.append("")
 
 

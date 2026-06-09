@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0 - 2026-06-09
+
+- Added TODO/FIXME-style task marker detection to Markdown, JSON, and agent brief outputs.
+- Rebuilt the README with readable English and Chinese usage notes.
+
 ## 0.3.0
 
 - Added `--format manifest` to write the recommended AI context pack as a newline-delimited file list.

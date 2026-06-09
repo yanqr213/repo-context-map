@@ -15,6 +15,7 @@ def test_markdown_report_contains_sections(make_repo):
     markdown = to_markdown(repo_map)
     assert "# Repository Context Map" in markdown
     assert "## Recommended AI Context Pack" in markdown
+    assert "## Task Markers" in markdown
     assert "```mermaid" in markdown
 
 
@@ -23,6 +24,7 @@ def test_json_report_is_parseable(make_repo):
     data = json.loads(to_json(repo_map))
     assert data["files_scanned"] >= 4
     assert data["language_stats"]["Python"]["files"] >= 2
+    assert "task_markers" in data
 
 
 def test_agent_brief_is_paste_ready(make_repo):
@@ -34,6 +36,8 @@ def test_agent_brief_is_paste_ready(make_repo):
     assert "`README.md` - documentation" in brief
     assert "`src/demo/cli.py` - probable entry point" in brief
     assert "python -m pytest" in brief
+    assert "## Task Markers" in brief
+    assert "TODO: handle command errors" in brief
     assert "## Suggested Agent Workflow" in brief
 
 
@@ -109,7 +113,7 @@ def test_python_module_entrypoint_reports_version():
         text=True,
     )
 
-    assert "repo-context-map 0.3.0" in completed.stdout
+    assert "repo-context-map 0.4.0" in completed.stdout
 
 
 def test_cli_check_returns_nonzero_for_risky_repo(tmp_path, capsys):

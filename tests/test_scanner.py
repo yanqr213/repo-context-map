@@ -15,6 +15,21 @@ def test_scan_repository_collects_core_sections(make_repo):
     assert repo_map.context_pack
 
 
+def test_scan_repository_collects_task_markers(tmp_path):
+    root = tmp_path / "repo"
+    write(root / "README.md", "# Demo\n")
+    write(root / "src" / "app.py", "def run():\n    # TODO: handle retries\n    return True\n")
+
+    repo_map = scan_repository(ScanConfig(root=root))
+
+    assert len(repo_map.task_markers) == 1
+    marker = repo_map.task_markers[0]
+    assert marker.path == "src/app.py"
+    assert marker.line == 2
+    assert marker.tag == "TODO"
+    assert marker.text == "handle retries"
+
+
 def test_scan_skips_binary_and_large_files(tmp_path):
     root = tmp_path / "repo"
     write(root / "README.md", "# Demo\n")

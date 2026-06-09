@@ -26,6 +26,14 @@ class DependencySummary:
 
 
 @dataclass
+class TaskMarker:
+    path: str
+    line: int
+    tag: str
+    text: str
+
+
+@dataclass
 class ScanConfig:
     root: Path
     max_file_size: int = 512_000
@@ -51,6 +59,7 @@ class RepoMap:
     largest_files: List[FileInfo]
     complex_files: List[FileInfo]
     hotspots: List[Dict[str, Any]]
+    task_markers: List[TaskMarker]
     risk_files: List[Dict[str, Any]]
     context_pack: List[Dict[str, Any]]
     entry_points: List[str]
