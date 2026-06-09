@@ -56,6 +56,18 @@ repo-context-map scan . --format json
 repo-context-map scan . --format agent-brief --output AGENT_BRIEF.md
 ```
 
+生成推荐上下文文件清单，适合交给 `prompt-context-gate` 或内部打包脚本：
+
+```bash
+repo-context-map scan . --format manifest --output context-manifest.txt
+```
+
+生成带文件内容的 Markdown context bundle，适合小型任务直接交给 AI 编程代理：
+
+```bash
+repo-context-map scan . --format context-bundle --budget 3500 --output context-bundle.md
+```
+
 写入文件，父目录会自动创建：
 
 ```bash
@@ -113,6 +125,8 @@ repo-context-map scan . --config repo-context-map.json
 - `Risk Files`：提示可能包含敏感信息、过大或复杂度过高的文件。
 - `Recommended AI Context Pack`：在预算内推荐最值得提供给 AI agent 的文件集合。
 - `Agent Repository Brief`：`--format agent-brief` 输出的精简交接简报，按先读文件、可尝试命令、依赖 manifest、推荐上下文包、风险和建议工作流组织。
+- `manifest`：只输出推荐上下文包里的路径，一行一个，便于后续脚本、pre-commit 或 `prompt-context-gate build --manifest` 继续处理。
+- `context-bundle`：输出 Markdown 文件块，包含推荐文件内容、选择原因和估算 token，适合小仓库或窄任务的快速交接。
 
 ## CI 用法
 
@@ -121,6 +135,8 @@ GitHub Actions 中可直接安装并运行：
 ```yaml
 - run: python -m pip install .
 - run: repo-context-map scan . --check --output reports/context-map.md
+- run: repo-context-map scan . --format manifest --output reports/context-manifest.txt
+- run: repo-context-map scan . --format context-bundle --budget 3500 --output reports/context-bundle.md
 ```
 
 本仓库自带 CI 会在 Python 3.9 到 3.12 上运行测试和 CLI 烟测。
@@ -132,6 +148,8 @@ GitHub Actions 中可直接安装并运行：
 ```bash
 repo-context-map scan examples/sample-python --mermaid
 repo-context-map scan examples/sample-python --format agent-brief --output AGENT_BRIEF.md
+repo-context-map scan examples/sample-python --format manifest --output context-manifest.txt
+repo-context-map scan examples/sample-python --format context-bundle --output context-bundle.md
 ```
 
 ## 适用场景
@@ -159,7 +177,11 @@ Typical use:
 repo-context-map scan . --output reports/context-map.md
 repo-context-map scan . --format json
 repo-context-map scan . --format agent-brief --output AGENT_BRIEF.md
+repo-context-map scan . --format manifest --output context-manifest.txt
+repo-context-map scan . --format context-bundle --budget 3500 --output context-bundle.md
 repo-context-map scan . --check
 ```
 
 The `agent-brief` format is designed to be pasted into Codex, Claude Code, Cursor, or similar coding agents before assigning work. It highlights start files, likely commands, dependency manifests, risk files, and a suggested workflow.
+
+The `manifest` format writes one recommended context path per line, which is useful for downstream tools such as `prompt-context-gate build --manifest`. The `context-bundle` format writes a Markdown bundle with selected file contents, reasons, and estimated token counts for quick handoff on small or focused tasks.

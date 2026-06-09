@@ -75,6 +75,53 @@ def to_agent_brief(repo_map: RepoMap) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def to_manifest(repo_map: RepoMap) -> str:
+    """Render the recommended context pack as a newline-delimited manifest."""
+
+    paths = [str(item["path"]) for item in repo_map.context_pack if item.get("path")]
+    return "\n".join(_dedupe(paths)) + ("\n" if paths else "")
+
+
+def to_context_bundle(repo_map: RepoMap) -> str:
+    """Render a paste-ready Markdown context bundle from recommended files."""
+
+    root = Path(repo_map.root)
+    lines: List[str] = [
+        "# Repository Context Bundle",
+        "",
+        f"Root: `{repo_map.root}`",
+        f"Files included: {len(repo_map.context_pack)}",
+        "",
+        "Use this bundle as initial AI coding context. Inspect the live files before editing.",
+        "",
+    ]
+    for item in repo_map.context_pack:
+        path = str(item.get("path") or "")
+        if not path:
+            continue
+        full_path = (root / path).resolve()
+        if not _is_within(root, full_path) or not full_path.is_file():
+            continue
+        text = full_path.read_text(encoding="utf-8", errors="replace")
+        language = _fence_language(path)
+        marker = _fence_marker(text)
+        fence = f"{marker}{language} {path}".rstrip()
+        lines.extend(
+            [
+                f"## file: {path}",
+                "",
+                f"- Reason: {item.get('reason', 'recommended context')}",
+                f"- Estimated tokens: {item.get('estimated_tokens', 'unknown')}",
+                "",
+                fence,
+                text.rstrip(),
+                marker,
+                "",
+            ]
+        )
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def write_report(content: str, output: str) -> None:
     path = Path(output)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -257,3 +304,44 @@ def _dedupe(values: List[str]) -> List[str]:
 
 def _cell(value: Any) -> str:
     return str(value).replace("|", "\\|").replace("\n", " ")
+
+
+def _is_within(root: Path, path: Path) -> bool:
+    try:
+        path.relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _fence_marker(text: str) -> str:
+    longest = 0
+    current = 0
+    for char in text:
+        if char == "`":
+            current += 1
+            longest = max(longest, current)
+        else:
+            current = 0
+    return "`" * max(3, longest + 1)
+
+
+def _fence_language(path: str) -> str:
+    suffix = Path(path).suffix.lower()
+    return {
+        ".py": "python",
+        ".js": "javascript",
+        ".jsx": "jsx",
+        ".ts": "typescript",
+        ".tsx": "tsx",
+        ".json": "json",
+        ".md": "markdown",
+        ".yml": "yaml",
+        ".yaml": "yaml",
+        ".toml": "toml",
+        ".rs": "rust",
+        ".go": "go",
+        ".java": "java",
+        ".sh": "bash",
+        ".ps1": "powershell",
+    }.get(suffix, "")

@@ -4,7 +4,7 @@ import sys
 
 from repo_context_map.cli import main
 from repo_context_map.models import ScanConfig
-from repo_context_map.report import to_agent_brief, to_json, to_markdown, write_report
+from repo_context_map.report import to_agent_brief, to_context_bundle, to_json, to_manifest, to_markdown, write_report
 from repo_context_map.scanner import scan_repository
 
 from conftest import write
@@ -35,6 +35,26 @@ def test_agent_brief_is_paste_ready(make_repo):
     assert "`src/demo/cli.py` - probable entry point" in brief
     assert "python -m pytest" in brief
     assert "## Suggested Agent Workflow" in brief
+
+
+def test_manifest_lists_recommended_context_paths(make_repo):
+    repo_map = scan_repository(ScanConfig(root=make_repo))
+    manifest = to_manifest(repo_map)
+
+    assert "README.md" in manifest.splitlines()
+    assert "src/demo/cli.py" in manifest.splitlines()
+
+
+def test_context_bundle_contains_file_blocks(make_repo):
+    repo_map = scan_repository(ScanConfig(root=make_repo))
+    bundle = to_context_bundle(repo_map)
+
+    assert "# Repository Context Bundle" in bundle
+    assert "## file: README.md" in bundle
+    assert "```markdown README.md" in bundle or "````markdown README.md" in bundle
+    assert "## file: src/demo/cli.py" in bundle
+    assert "```python src/demo/cli.py" in bundle
+    assert "``\\`" not in bundle
 
 
 def test_write_report_creates_parent_directory(tmp_path, make_repo):
@@ -68,6 +88,19 @@ def test_cli_scan_agent_brief_output(tmp_path, make_repo):
     assert "Recommended Context Pack" in text
 
 
+def test_cli_scan_manifest_and_context_bundle_outputs(tmp_path, make_repo):
+    manifest = tmp_path / "out" / "context-manifest.txt"
+    bundle = tmp_path / "out" / "context-bundle.md"
+
+    manifest_code = main(["scan", str(make_repo), "--format", "manifest", "--output", str(manifest)])
+    bundle_code = main(["scan", str(make_repo), "--format", "context-bundle", "--output", str(bundle)])
+
+    assert manifest_code == 0
+    assert bundle_code == 0
+    assert "README.md" in manifest.read_text(encoding="utf-8")
+    assert "# Repository Context Bundle" in bundle.read_text(encoding="utf-8")
+
+
 def test_python_module_entrypoint_reports_version():
     completed = subprocess.run(
         [sys.executable, "-m", "repo_context_map", "--version"],
@@ -76,7 +109,7 @@ def test_python_module_entrypoint_reports_version():
         text=True,
     )
 
-    assert "repo-context-map 0.2.0" in completed.stdout
+    assert "repo-context-map 0.3.0" in completed.stdout
 
 
 def test_cli_check_returns_nonzero_for_risky_repo(tmp_path, capsys):

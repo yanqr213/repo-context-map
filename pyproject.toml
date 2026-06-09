@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repo-context-map"
-version = "0.2.0"
+version = "0.3.0"
 description = "Offline CLI that builds repository context maps for AI coding agents."
 readme = "README.md"
 requires-python = ">=3.9"

@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from . import __version__
 from .config import build_scan_config
-from .report import to_agent_brief, to_json, to_markdown, write_report
+from .report import to_agent_brief, to_context_bundle, to_json, to_manifest, to_markdown, write_report
 from .scanner import scan_repository
 
 
@@ -27,7 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("path", nargs="?", default=".", help="Repository path to scan.")
     scan.add_argument(
         "--format",
-        choices=["markdown", "json", "agent-brief"],
+        choices=["markdown", "json", "agent-brief", "manifest", "context-bundle"],
         default="markdown",
         help="Output format.",
     )
@@ -54,6 +54,10 @@ def _scan(args: argparse.Namespace) -> int:
         content = to_json(repo_map)
     elif args.format == "agent-brief":
         content = to_agent_brief(repo_map)
+    elif args.format == "manifest":
+        content = to_manifest(repo_map)
+    elif args.format == "context-bundle":
+        content = to_context_bundle(repo_map)
     else:
         content = to_markdown(repo_map)
     if args.output:
